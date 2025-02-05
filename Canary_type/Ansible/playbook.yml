@@ -1,0 +1,45 @@
+- name: Canary Deployment Using Ansible
+  hosts: canary
+  become: yes
+  tasks:
+    - name: Deploy new app version (v2) on Canary Servers
+      ansible.builtin.copy:
+        src: /path/to/app_v2
+        dest: /var/www/html/index.html
+      notify: Restart Web Server
+
+  handlers:
+    - name: Restart Web Server
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
+
+- name: Validate Canary Servers
+  hosts: canary
+  tasks:
+    - name: Check if the new app is running
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}"
+        return_content: yes
+      register: response
+
+    - name: Fail if application response is incorrect
+      ansible.builtin.fail:
+        msg: "Canary deployment failed!"
+      when: "'New App Version v2' not in response.content"
+
+- name: Deploy to Remaining Servers if Canary Passed
+  hosts: remaining
+  become: yes
+  tasks:
+    - name: Deploy new app version (v2) on Remaining Servers
+      ansible.builtin.copy:
+        src: /path/to/app_v2
+        dest: /var/www/html/index.html
+      notify: Restart Web Server
+
+  handlers:
+    - name: Restart Web Server
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
